@@ -1,6 +1,6 @@
 {
   "name": "react-native-fortress",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Native-first mobile security for React Native: anti-tampering, root/jailbreak detection, SSL pinning",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
@@ -41,6 +41,12 @@
   },
   "keywords": [
     "react-native",
+    "security",
+    "ssl-pinning",
+    "jailbreak",
+    "root-detection",
+    "frida",
+    "anti-tampering",
     "ios",
     "android"
   ],
@@ -122,6 +128,14 @@
   },
   "jest": {
     "preset": "@react-native/jest-preset",
+    "haste": {
+      "defaultPlatform": "web",
+      "platforms": [
+        "android",
+        "ios",
+        "web"
+      ]
+    },
     "testEnvironmentOptions": {
       "customExportConditions": [
         "require",

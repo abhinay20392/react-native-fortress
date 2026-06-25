@@ -5,9 +5,13 @@ import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.module.model.ReactModuleInfo
 import com.facebook.react.module.model.ReactModuleInfoProvider
-import java.util.HashMap
+import com.facebook.react.modules.network.OkHttpClientProvider
+import com.fortress.ssl.SslPinningManager
 
 class FortressPackage : BaseReactPackage() {
+  init {
+    OkHttpClientProvider.setOkHttpClientFactory(SslPinningManager)
+  }
   override fun getModule(name: String, reactContext: ReactApplicationContext): NativeModule? {
     return if (name == FortressModule.NAME) {
       FortressModule(reactContext)
