@@ -177,6 +177,54 @@ yarn example android
 yarn example ios
 ```
 
+## Future work
+
+v1.0 ships a native-first foundation. Planned improvements:
+
+### iOS testing and hardening
+
+iOS support is implemented but **not fully tested** on physical devices and release builds yet. Future work includes:
+
+- Device and simulator test matrix (debug vs release)
+- SSL pinning validation against real hosts (EC/RSA certs, rotation, wrong-pin failures)
+- Jailbreak/tamper false-positive tuning on newer iOS versions
+
+### Multilevel defense (JS → Native → C++)
+
+Today, JavaScript is a thin typed facade and most logic runs in Kotlin (Android) and Objective-C++ (iOS). A stronger model is planned where each layer corroborates the others — bypassing JS alone should not be enough.
+
+```
+┌─────────────────────────────────────┐
+│  JS        policy, UX, bundle checks │
+├─────────────────────────────────────┤
+│  Native    platform APIs, orchestration │
+├─────────────────────────────────────┤
+│  C++       shared scoring, sensitive logic │
+└─────────────────────────────────────┘
+```
+
+| Layer | Planned role |
+|-------|----------------|
+| **JavaScript** | Optional release bundle integrity checks, bridge tamper detection, dev/prod policy |
+| **Native** | Root/jailbreak, Frida/debugger, SSL pinning, event emission (current focus) |
+| **C++** | Shared threat scoring, constant-time compares, pin validation helpers — harder to patch via the JS bridge alone |
+
+Layers should **corroborate** each other (e.g. C++ flags a threat → native emits → app responds), not trust a single boolean from one tier.
+
+### Other planned features
+
+| Area | Direction |
+|------|-----------|
+| Emulator detection | Platform heuristics, off by default in dev |
+| `block_ui` policy | Native overlay for critical threats without relying on JS |
+| Repackaging (iOS) | Team ID / bundle integrity signals (App Store–safe) |
+| Expo | Config plugin for prebuild projects |
+| Threat tuning | Per-threat severity config and allowlists |
+| Tests | Native unit tests + example-app E2E on Android and iOS |
+| Server attestation | Optional Play Integrity / DeviceCheck integration |
+
+No mobile security library is unbreakable on a fully compromised device. The goal is layered defense, early detection, and configurable response — with server-side risk scoring for high-value flows.
+
 ## License
 
 MIT
