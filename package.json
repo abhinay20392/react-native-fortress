@@ -33,6 +33,7 @@
   ],
   "scripts": {
     "example": "yarn workspace react-native-fortress-example",
+    "build": "bob build",
     "clean": "del-cli android/build example/android/build example/android/app/build example/ios/build lib",
     "prepare": "bob build",
     "typecheck": "tsc",

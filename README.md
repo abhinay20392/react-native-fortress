@@ -177,6 +177,32 @@ yarn example android
 yarn example ios
 ```
 
+## Troubleshooting
+
+### `yarn prepare` or `yarn build` fails
+
+Run commands from the **repo root** (`react-native-fortress/`), not from `example/`:
+
+```sh
+cd /path/to/react-native-fortress
+yarn install
+yarn build
+```
+
+`yarn build` and `yarn prepare` both compile `src/` → `lib/` via [react-native-builder-bob](https://github.com/callstack/react-native-builder-bob). Yarn 4 does **not** run `prepare` automatically on `yarn install` — run `yarn build` after cloning.
+
+If you see `bob: command not found`, install dependencies first:
+
+```sh
+yarn install
+```
+
+Use Node **24+** (see `.nvmrc`). If a previous build failed, retry:
+
+```sh
+yarn build
+```
+
 ## Future work
 
 v1.0 ships a native-first foundation. Planned improvements:
