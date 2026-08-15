@@ -9,7 +9,7 @@ describe('Fortress (JS fallback)', () => {
 
     expect(status.configured).toBe(true);
     expect(status.monitoring).toBe(true);
-    expect(status.version).toBe('1.0.0');
+    expect(status.version).toBe('1.0.1');
   });
 
   it('returns stub threats from runChecks', async () => {

@@ -146,9 +146,9 @@
         return;
     }
 
-    __weak typeof(self) weakSelf = self;
+    __weak __typeof__(self) weakSelf = self;
     dispatch_async(self.pollQueue, ^{
-        typeof(self) strongSelf = weakSelf;
+        __typeof__(self) strongSelf = weakSelf;
         if (strongSelf == nil) {
             return;
         }

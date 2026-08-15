@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Fortress } from 'react-native-fortress';
 import type { FortressStatus, ThreatEvent } from 'react-native-fortress';
+import { configureExampleFortress } from '../fortressConfig';
 
 function formatTimestamp(ms: number): string {
   return new Date(ms).toLocaleTimeString();
@@ -31,6 +32,7 @@ export function TamperMonitorScreen() {
   const [status, setStatus] = useState<FortressStatus | null>(null);
   const [liveThreats, setLiveThreats] = useState<ThreatEvent[]>([]);
   const [listening, setListening] = useState(false);
+  const [tamperEnabled, setTamperEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,17 +48,16 @@ export function TamperMonitorScreen() {
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        await Fortress.configure({
-          monitor: true,
+        // Start with tamper off in __DEV__ so opening this tab under a debugger is quiet.
+        await configureExampleFortress({
           pollIntervalMs: 10_000,
           checks: {
-            tamper: true,
+            tamper: false,
             root: false,
             jailbreak: false,
           },
-          onCriticalThreat: 'log',
         });
-        await Fortress.startMonitoring();
+        await Fortress.stopMonitoring();
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Failed to configure Fortress'
@@ -69,6 +70,33 @@ export function TamperMonitorScreen() {
     };
 
     bootstrap();
+  }, [refreshStatus]);
+
+  const enableTamperMonitoring = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await configureExampleFortress({
+        monitor: true,
+        pollIntervalMs: 10_000,
+        checks: {
+          tamper: true,
+          root: false,
+          jailbreak: false,
+        },
+      });
+      await Fortress.startMonitoring();
+      setTamperEnabled(true);
+      await refreshStatus();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to enable tamper monitoring'
+      );
+    } finally {
+      setLoading(false);
+    }
   }, [refreshStatus]);
 
   useEffect(() => {
@@ -96,11 +124,31 @@ export function TamperMonitorScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Tamper Monitor</Text>
       <Text style={styles.subtitle}>
-        Phase 3 — live Frida, debugger, and hook detection via native polling
+        Live Frida, debugger, and hook detection via native polling. Tamper
+        checks stay off until you enable them (avoids IDE debugger noise in
+        __DEV__).
       </Text>
 
       {loading ? <ActivityIndicator size="large" color="#38bdf8" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Tamper checks</Text>
+        <Text style={styles.row}>
+          Enabled:{' '}
+          <Text style={styles.value}>{tamperEnabled ? 'Yes' : 'No'}</Text>
+        </Text>
+        {!tamperEnabled ? (
+          <Pressable style={styles.button} onPress={enableTamperMonitoring}>
+            <Text style={styles.buttonText}>Enable tamper monitoring</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.instruction}>
+            Monitoring is active. Attach a debugger or Frida on a test device to
+            see events below.
+          </Text>
+        )}
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Listener</Text>
@@ -135,17 +183,20 @@ export function TamperMonitorScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>How to test safely</Text>
         <Text style={styles.instruction}>
-          Android: run the app via Android Studio with the debugger attached, or
-          use "Debug" from the IDE. Debugger and TracerPid checks should fire
+          1. Tap “Enable tamper monitoring” above (keeps launch quiet under
+          Android Studio / Xcode).
+        </Text>
+        <Text style={styles.instruction}>
+          2. Android: Debug from the IDE — debugger / TracerPid should fire
           while attached.
         </Text>
         <Text style={styles.instruction}>
-          iOS: attach Xcode debugger (Debug → Attach to Process).
-          Frida/Objection on a test device should trigger frida/hooking signals.
+          3. iOS device: attach Xcode debugger, or use Frida/Objection on a test
+          device. Simulator skips debugger and several jailbreak probes to
+          reduce false positives.
         </Text>
         <Text style={styles.instruction}>
-          Detach the debugger and pull to refresh status — events stream in
-          while monitoring is active.
+          4. Detach the debugger — new events stop once signals clear.
         </Text>
       </View>
 
@@ -262,6 +313,18 @@ const styles = StyleSheet.create({
   },
   buttonSecondaryText: {
     color: '#e2e8f0',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  button: {
+    backgroundColor: '#2563eb',
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  buttonText: {
+    color: '#ffffff',
     fontWeight: '600',
     fontSize: 16,
   },

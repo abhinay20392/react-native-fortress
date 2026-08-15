@@ -1,5 +1,7 @@
 #import <Foundation/Foundation.h>
 
+#import <Security/Security.h>
+
 NS_ASSUME_NONNULL_BEGIN
 
 @interface SslPinningManager : NSObject
@@ -7,6 +9,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign, readonly) BOOL configured;
 
 + (instancetype)shared;
++ (NSString *)normalizePinHash:(NSString *)hash;
++ (nullable NSString *)spkiHashForCertificate:(SecCertificateRef)certificate;
 
 - (void)configurePins:(NSArray *)pins;
 - (void)performPinnedRequestWithURL:(NSString *)url

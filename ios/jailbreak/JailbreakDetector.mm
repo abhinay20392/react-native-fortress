@@ -1,5 +1,7 @@
 #import "JailbreakDetector.h"
 
+#import "FortressThreatResult.h"
+#import <TargetConditionals.h>
 #import <UIKit/UIKit.h>
 #import <mach-o/dyld.h>
 #import <sys/stat.h>
@@ -22,36 +24,54 @@
 
 @implementation JailbreakDetector
 
-+ (NSArray<NSString *> *)suspiciousPaths
+/// Paths that indicate a jailbreak on real devices and are safe to check on Simulator.
++ (NSArray<NSString *> *)jailbreakSpecificPaths
 {
     return @[
         @"/Applications/Cydia.app",
         @"/Applications/Sileo.app",
         @"/Applications/Zebra.app",
         @"/Library/MobileSubstrate/MobileSubstrate.dylib",
-        @"/bin/bash",
-        @"/usr/sbin/sshd",
-        @"/etc/apt",
         @"/private/var/lib/apt/",
         @"/private/var/lib/cydia",
         @"/private/var/stash",
-        @"/usr/libexec/sftp-server",
-        @"/usr/bin/ssh",
         @"/private/var/mobile/Library/SBSettings",
         @"/var/jb",
         @"/var/binpack",
+        @"/usr/libexec/sftp-server",
     ];
+}
+
+/// Unix tooling paths that often exist on the Simulator (macOS host) and cause false positives.
++ (NSArray<NSString *> *)deviceOnlyUnixPaths
+{
+    return @[
+        @"/bin/bash",
+        @"/usr/sbin/sshd",
+        @"/etc/apt",
+        @"/usr/bin/ssh",
+    ];
+}
+
++ (NSArray<NSString *> *)suspiciousPaths
+{
+    NSMutableArray<NSString *> *paths = [[self jailbreakSpecificPaths] mutableCopy];
+#if !TARGET_OS_SIMULATOR
+    [paths addObjectsFromArray:[self deviceOnlyUnixPaths]];
+#endif
+    return paths;
 }
 
 + (NSArray<NSString *> *)suspiciousDylibs
 {
     return @[
+        @"MobileSubstrate",
         @"Substrate",
         @"Substitute",
-        @"frida",
+        @"frida-gadget",
+        @"frida-agent",
         @"cycript",
         @"SSLKillSwitch",
-        @"MobileSubstrate",
         @"TweakInject",
     ];
 }
@@ -75,7 +95,7 @@
         [threats addObject:forkThreat];
     }
 
-    FortressThreatResult *statThreat = [self checkRestrictedPathStat];
+    FortressThreatResult *statThreat = [self checkRestrictedPathWrite];
     if (statThreat != nil) {
         [threats addObject:statThreat];
     }
@@ -147,8 +167,12 @@
         }
 
         NSString *name = [NSString stringWithUTF8String:imageName];
+        NSString *lastComponent = name.lastPathComponent ?: name;
         for (NSString *needle in [self suspiciousDylibs]) {
-            if ([name rangeOfString:needle options:NSCaseInsensitiveSearch].location != NSNotFound) {
+            if ([lastComponent rangeOfString:needle options:NSCaseInsensitiveSearch].location != NSNotFound ||
+                [name rangeOfString:[NSString stringWithFormat:@"/%@", needle]
+                            options:NSCaseInsensitiveSearch]
+                        .location != NSNotFound) {
                 [found addObject:name];
                 break;
             }
@@ -185,20 +209,33 @@
 #endif
 }
 
-+ (FortressThreatResult *)checkRestrictedPathStat
++ (FortressThreatResult *)checkRestrictedPathWrite
 {
-    struct stat statInfo;
-    if (stat("/private/jailbreak.txt", &statInfo) == 0) {
-        return [self makeThreatWithType:@"jailbreak"
-                               severity:@"medium"
-                                message:@"Restricted path /private/jailbreak.txt is accessible"];
+#if TARGET_OS_SIMULATOR
+    return nil;
+#else
+    NSString *probePath = @"/private/fortress_jb_probe.txt";
+    NSError *error = nil;
+    BOOL wrote = [@"fortress" writeToFile:probePath
+                               atomically:YES
+                                 encoding:NSUTF8StringEncoding
+                                    error:&error];
+    if (!wrote) {
+        return nil;
     }
 
-    return nil;
+    [[NSFileManager defaultManager] removeItemAtPath:probePath error:nil];
+    return [self makeThreatWithType:@"jailbreak"
+                           severity:@"high"
+                            message:@"Wrote outside the app sandbox (/private) — jailbreak indicator"];
+#endif
 }
 
 + (FortressThreatResult *)checkCydiaUrlScheme
 {
+#if TARGET_OS_SIMULATOR
+    return nil;
+#else
     NSURL *url = [NSURL URLWithString:@"cydia://package/com.example.package"];
     if (url == nil) {
         return nil;
@@ -211,6 +248,7 @@
     }
 
     return nil;
+#endif
 }
 
 @end

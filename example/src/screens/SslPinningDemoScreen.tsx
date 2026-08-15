@@ -108,12 +108,13 @@ export function SslPinningDemoScreen() {
           message: `HTTP ${result.status} — ${result.body.slice(0, 80)}…`,
         });
       } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Pinned request failed';
         setState({
           label,
           loading: false,
           success: false,
-          message:
-            error instanceof Error ? error.message : 'Pinned request failed',
+          message: `${message} — verify publicKeyHashes (add a backup pin before cert rotation).`,
         });
       }
     },

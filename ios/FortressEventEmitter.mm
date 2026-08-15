@@ -37,7 +37,7 @@ RCT_EXPORT_MODULE(FortressEventEmitter);
 + (void)emitThreat:(NSDictionary *)body
 {
   if (_sharedEmitter != nil && _sharedEmitter->_ready) {
-    [_sharedEmitter sendEventWithName:@"onFortressThreat" withBody:body];
+    [_sharedEmitter sendEventWithName:@"onFortressThreat" body:body];
   }
 }
 

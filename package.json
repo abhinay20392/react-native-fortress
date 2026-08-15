@@ -1,6 +1,6 @@
 {
   "name": "react-native-fortress",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Native-first mobile security for React Native: anti-tampering, root/jailbreak detection, SSL pinning",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",

@@ -1,6 +1,6 @@
 #import <Foundation/Foundation.h>
 
-@class FortressThreatResult;
+#import "FortressThreatResult.h"
 
 NS_ASSUME_NONNULL_BEGIN
 

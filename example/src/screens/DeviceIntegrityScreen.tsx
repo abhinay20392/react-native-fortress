@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Fortress } from 'react-native-fortress';
 import type { FortressStatus, ThreatEvent } from 'react-native-fortress';
+import { configureExampleFortress } from '../fortressConfig';
 
 function formatTimestamp(ms?: number): string {
   if (ms == null) {
@@ -62,16 +63,14 @@ export function DeviceIntegrityScreen() {
   useEffect(() => {
     const bootstrap = async () => {
       try {
-        await Fortress.configure({
-          monitor: true,
+        // __DEV__: tamper off by default so IDE debuggers do not trip integrity demos.
+        await configureExampleFortress({
           pollIntervalMs: 15_000,
           checks: {
             root: true,
             jailbreak: true,
             tamper: false,
-            sslPinning: false,
           },
-          onCriticalThreat: 'log',
         });
       } catch (err) {
         setError(
@@ -99,7 +98,8 @@ export function DeviceIntegrityScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Device Integrity</Text>
       <Text style={styles.subtitle}>
-        Phase 2 — native root / jailbreak checks (tamper checks in Tamper tab)
+        Native root / jailbreak checks. Tamper stays off here (see Tamper tab).
+        On iOS Simulator, some probes are skipped to avoid host false positives.
       </Text>
 
       {loading ? <ActivityIndicator size="large" color="#38bdf8" /> : null}

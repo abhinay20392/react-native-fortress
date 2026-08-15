@@ -1,6 +1,6 @@
 #import <Foundation/Foundation.h>
 
-#import "jailbreak/JailbreakDetector.h"
+#import "FortressThreatResult.h"
 
 NS_ASSUME_NONNULL_BEGIN
 

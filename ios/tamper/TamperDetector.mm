@@ -1,5 +1,7 @@
 #import "TamperDetector.h"
 
+#import "FortressThreatResult.h"
+#import <TargetConditionals.h>
 #import <mach-o/dyld.h>
 #import <sys/sysctl.h>
 #import <unistd.h>
@@ -8,12 +10,12 @@
 
 + (NSArray<NSString *> *)fridaSignatures
 {
-    return @[ @"frida", @"frida-gadget", @"gum-js", @"linjector", @"frida-agent" ];
+    return @[ @"frida-gadget", @"frida-agent", @"gum-js", @"linjector", @"frida" ];
 }
 
 + (NSArray<NSString *> *)hookSignatures
 {
-    return @[ @"Substrate", @"Substitute", @"MSHook", @"frida", @"cycript", @"TweakInject" ];
+    return @[ @"MobileSubstrate", @"Substrate", @"Substitute", @"MSHook", @"cycript", @"TweakInject" ];
 }
 
 + (NSArray<FortressThreatResult *> *)runChecks
@@ -70,6 +72,21 @@
     return threat;
 }
 
++ (BOOL)imageName:(NSString *)name matchesSignatures:(NSArray<NSString *> *)signatures
+{
+    NSString *lastComponent = name.lastPathComponent ?: name;
+    for (NSString *needle in signatures) {
+        if ([lastComponent rangeOfString:needle options:NSCaseInsensitiveSearch].location != NSNotFound) {
+            return YES;
+        }
+        NSString *pathNeedle = [NSString stringWithFormat:@"/%@", needle];
+        if ([name rangeOfString:pathNeedle options:NSCaseInsensitiveSearch].location != NSNotFound) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
 + (FortressThreatResult *)checkFridaInMaps
 {
     NSMutableArray<NSString *> *found = [NSMutableArray array];
@@ -82,11 +99,8 @@
         }
 
         NSString *name = [NSString stringWithUTF8String:imageName];
-        for (NSString *needle in [self fridaSignatures]) {
-            if ([name rangeOfString:needle options:NSCaseInsensitiveSearch].location != NSNotFound) {
-                [found addObject:name];
-                break;
-            }
+        if ([self imageName:name matchesSignatures:[self fridaSignatures]]) {
+            [found addObject:name];
         }
     }
 
@@ -102,6 +116,10 @@
 
 + (FortressThreatResult *)checkDyldInsertLibraries
 {
+#if TARGET_OS_SIMULATOR
+    // Simulator / Xcode tooling may inject libraries; not a reliable device signal.
+    return nil;
+#else
     const char *env = getenv("DYLD_INSERT_LIBRARIES");
     if (env == NULL || strlen(env) == 0) {
         return nil;
@@ -110,11 +128,13 @@
     return [self makeThreatWithType:@"hooking"
                            severity:@"high"
                             message:[NSString stringWithFormat:@"DYLD_INSERT_LIBRARIES is set: %s", env]];
+#endif
 }
 
 + (FortressThreatResult *)checkDebuggerAttached
 {
 #if TARGET_OS_SIMULATOR
+    // Simulator debug sessions are the normal Xcode workflow — skip to avoid false positives.
     return nil;
 #else
     struct kinfo_proc info;
@@ -147,11 +167,8 @@
         }
 
         NSString *name = [NSString stringWithUTF8String:imageName];
-        for (NSString *needle in [self hookSignatures]) {
-            if ([name rangeOfString:needle options:NSCaseInsensitiveSearch].location != NSNotFound) {
-                [found addObject:name];
-                break;
-            }
+        if ([self imageName:name matchesSignatures:[self hookSignatures]]) {
+            [found addObject:name];
         }
     }
 

@@ -124,15 +124,26 @@ echo | openssl s_client -servername api.example.com -connect api.example.com:443
   | openssl enc -base64
 ```
 
-Hashes can be passed with or without the `sha256/` prefix.
+Hashes can be passed with or without the `sha256/` prefix (both are normalized).
 
 - Use `Fortress.fetchPinned()` for security-sensitive requests (works on Android and iOS).
 - On Android, `configureSslPinning` also hooks React Native's OkHttp client when called early.
 - On iOS, third-party `fetch()` calls are not automatically pinned — use `fetchPinned()`.
 
+### SSL pin failures and rotation
+
+| Situation | What happens |
+|-----------|----------------|
+| Wrong / outdated pin | `fetchPinned` rejects with `E_SSL_PIN_FAILURE`; a `ssl_pin_failure` threat is emitted |
+| Pinning not configured | Rejects with `E_SSL_PINNING` — call `configureSslPinning` first |
+| Cert rotation | Ship a **backup** pin in `publicKeyHashes` before rotating the server cert, then remove the old pin in a later app release |
+| CDN vs origin | Pin the public key of the certificate the **app actually sees** (often the CDN/edge cert) |
+
+Always test a deliberate wrong pin in staging so you confirm failures are detectable before release.
+
 ## Repackaging detection (Android)
 
-Opt-in check that your app is signed with your release certificate:
+Opt-in check that your app is signed with your expected release certificate:
 
 ```typescript
 await Fortress.configure({
@@ -141,12 +152,23 @@ await Fortress.configure({
 });
 ```
 
-Get your release cert SHA-256:
+Get a signing cert SHA-256 (hex, no colons):
 
 ```bash
 keytool -list -v -keystore your-release.keystore -alias your-alias \
   | grep "SHA256:" | awk '{print $2}' | tr -d ':' | tr '[:upper:]' '[:lower:]'
 ```
+
+### Play App Signing vs upload key
+
+If you use **Google Play App Signing**, end-user APKs/AABs are re-signed with Google's **app signing key**, not your local upload keystore.
+
+| Key | Use for Fortress `expectedSigningCertificateSha256`? |
+|-----|------------------------------------------------------|
+| **App signing key** (Play Console → Setup → App signing) | **Yes** — this is what devices install |
+| **Upload key** (your local keystore used to upload) | **No** for production users — causes false `repackaging` threats |
+
+Copy the **SHA-256 certificate** fingerprint of the **app signing key** from Play Console (strip colons, lowercase). Disable `repackaging` in debug builds — the debug keystore will never match.
 
 ## Development builds
 
@@ -162,6 +184,10 @@ await Fortress.configure({
   },
 });
 ```
+
+The example app follows this pattern: tamper stays off until you enable it on the Tamper tab.
+
+**iOS Simulator notes:** several probes are skipped or narrowed (unix paths like `/bin/bash`, debugger, `DYLD_INSERT_LIBRARIES`, sandbox write, Cydia URL) to avoid false positives from the macOS host environment. Validate jailbreak/tamper behavior on a **physical device**.
 
 ## Example app
 
@@ -205,15 +231,7 @@ yarn build
 
 ## Future work
 
-v1.0 ships a native-first foundation. Planned improvements:
-
-### iOS testing and hardening
-
-iOS support is implemented but **not fully tested** on physical devices and release builds yet. Future work includes:
-
-- Device and simulator test matrix (debug vs release)
-- SSL pinning validation against real hosts (EC/RSA certs, rotation, wrong-pin failures)
-- Jailbreak/tamper false-positive tuning on newer iOS versions
+See [docs/V2_ROADMAP.md](docs/V2_ROADMAP.md) for the v2 plan. v1.x patches (false-positive tuning, SSL/repackaging docs) land before the major release.
 
 ### Multilevel defense (JS → Native → C++)
 

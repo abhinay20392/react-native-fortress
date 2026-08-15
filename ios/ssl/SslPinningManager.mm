@@ -69,12 +69,29 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         }
     }
 
-    CFIndex certificateCount = SecTrustGetCertificateCount(serverTrust);
-    for (CFIndex index = 0; index < certificateCount; index++) {
-        SecCertificateRef certificate = SecTrustGetCertificateAtIndex(serverTrust, index);
-        NSString *hash = [SslPinningManager spkiHashForCertificate:certificate];
-        if (hash != nil && [allowedPins containsObject:hash]) {
-            return YES;
+    if (@available(iOS 15.0, *)) {
+        CFArrayRef certificateChain = SecTrustCopyCertificateChain(serverTrust);
+        if (certificateChain != NULL) {
+            CFIndex certificateCount = CFArrayGetCount(certificateChain);
+            for (CFIndex index = 0; index < certificateCount; index++) {
+                SecCertificateRef certificate =
+                    (SecCertificateRef)CFArrayGetValueAtIndex(certificateChain, index);
+                NSString *hash = [SslPinningManager spkiHashForCertificate:certificate];
+                if (hash != nil && [allowedPins containsObject:hash]) {
+                    CFRelease(certificateChain);
+                    return YES;
+                }
+            }
+            CFRelease(certificateChain);
+        }
+    } else {
+        CFIndex certificateCount = SecTrustGetCertificateCount(serverTrust);
+        for (CFIndex index = 0; index < certificateCount; index++) {
+            SecCertificateRef certificate = SecTrustGetCertificateAtIndex(serverTrust, index);
+            NSString *hash = [SslPinningManager spkiHashForCertificate:certificate];
+            if (hash != nil && [allowedPins containsObject:hash]) {
+                return YES;
+            }
         }
     }
 
@@ -262,11 +279,16 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         [session dataTaskWithURL:requestURL
                completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
                    if (error != nil) {
-                       NSString *message = error.localizedDescription ?: @"SSL pinning validation failed";
+                       NSString *detail = error.localizedDescription ?: @"SSL pinning validation failed";
+                       NSString *message = [NSString stringWithFormat:
+                           @"Pinned request failed for %@: %@. "
+                            "Check publicKeyHashes match the cert the app sees (CDN/edge), "
+                            "and include a backup pin before certificate rotation.",
+                           url, detail];
                        emitThreat(@{
                            @"type": @"ssl_pin_failure",
                            @"severity": @"high",
-                           @"message": [NSString stringWithFormat:@"Pinned request failed for %@: %@", url, message],
+                           @"message": message,
                            @"platform": @"ios",
                            @"timestamp": @([[NSDate date] timeIntervalSince1970] * 1000),
                        });

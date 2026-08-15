@@ -85,7 +85,7 @@
         @"configured": @(self.orchestrator.configured),
         @"sslPinningConfigured": @([SslPinningManager shared].configured),
         @"platform": @"ios",
-        @"version": @"1.0.0",
+        @"version": @"1.0.1",
         @"pollIntervalMs": @(self.orchestrator.configuredPollIntervalMs),
         @"lastThreatCount": @(self.orchestrator.lastThreats.count),
     } mutableCopy];

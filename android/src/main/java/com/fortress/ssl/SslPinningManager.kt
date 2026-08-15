@@ -112,12 +112,16 @@ object SslPinningManager : OkHttpClientFactory {
           promise.resolve(result)
         }
       } catch (error: IOException) {
-        val message = error.message ?: "SSL pinning validation failed"
+        val detail = error.message ?: "SSL pinning validation failed"
+        val message =
+          "Pinned request failed for $url: $detail. " +
+            "Check publicKeyHashes match the cert the app sees (CDN/edge), " +
+            "and include a backup pin before certificate rotation."
         val threat =
           ThreatResult(
             type = "ssl_pin_failure",
             severity = "high",
-            message = "Pinned request failed for $url: $message",
+            message = message,
           )
         emitThreat(threat)
         reactContext.runOnUiQueueThread {
