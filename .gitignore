@@ -44,9 +44,12 @@ android.iml
 # Cocoapods
 #
 example/ios/Pods
+example/ios/Podfile.lock
+example/ios/FortressExample.xcworkspace/
 
 # Ruby
 example/vendor/
+example/Gemfile.lock
 
 # node.js
 #
@@ -80,6 +83,15 @@ lib/
 
 # Local docs (not published to npm / remote)
 docs/
+
+# Local marketing / promo assets (not part of the library)
+assets/
+
+# Jest / coverage reports
+coverage/
+
+# Host-built C++ unit test binary
+**/fortress_scoring_test
 
 # React Native Codegen
 ios/generated
