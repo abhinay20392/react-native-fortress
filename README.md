@@ -28,6 +28,7 @@ await Fortress.configure({
     tamper: true,
     root: true,
     jailbreak: true,
+    emulator: false,
     repackaging: false,
   },
   onCriticalThreat: 'log',
@@ -55,7 +56,7 @@ subscription.remove();
 
 ```typescript
 {
-  type: 'frida' | 'debugger' | 'hooking' | 'root' | 'jailbreak' | 'ssl_pin_failure' | 'repackaging' | ...;
+  type: 'frida' | 'debugger' | 'hooking' | 'root' | 'jailbreak' | 'ssl_pin_failure' | 'emulator' | 'repackaging' | ...;
   severity: 'low' | 'medium' | 'high' | 'critical';
   message: string;
   platform: 'ios' | 'android';
@@ -87,12 +88,40 @@ await Fortress.configure({
     tamper: true,       // Frida, debugger, hook frameworks
     root: true,         // Android
     jailbreak: true,    // iOS
+    emulator: false,    // opt-in; medium severity (alone ≠ compromised)
     repackaging: false, // Android only (see below)
   },
+  // Triggers on high OR critical threats (v1.x). Prefer 'log' until you need hard fail.
+  // 'block_ui' is reserved — not implemented yet (v2).
   onCriticalThreat: 'log', // 'log' | 'block_ui' | 'exit'
   expectedSigningCertificateSha256: '...', // required when repackaging is enabled
 });
 ```
+
+### `onCriticalThreat` behavior (v1.x)
+
+| Value | Behavior |
+|-------|----------|
+| `log` (default) | Log threats and emit `onFortressThreat` events |
+| `exit` | Kill the process when a **high or critical** threat is seen during monitoring |
+| `block_ui` | Not implemented yet — falls back to a native log warning |
+
+The option name says “critical,” but **`exit` currently applies to high and critical**. v2 will introduce an explicit `exitOn` setting.
+
+## Emulator / Simulator detection
+
+Opt-in via `checks.emulator: true` (default **off**). Emits a single `emulator` threat at **medium** severity, so it alone does **not** make `isDeviceCompromised()` true.
+
+```typescript
+await Fortress.configure({
+  checks: {
+    emulator: !__DEV__, // or true in CI against emulators
+  },
+});
+```
+
+- **Android:** Build props (`goldfish`/`ranchu`/sdk), QEMU/Genymotion files, related system props
+- **iOS:** `TARGET_OS_SIMULATOR`, `hw.machine` / `uname` x86 indicators, `SIMULATOR_DEVICE_NAME`
 
 ## SSL pinning
 
@@ -259,8 +288,8 @@ Layers should **corroborate** each other (e.g. C++ flags a threat → native emi
 
 | Area | Direction |
 |------|-----------|
-| Emulator detection | Platform heuristics, off by default in dev |
-| `block_ui` policy | Native overlay for critical threats without relying on JS |
+| `block_ui` policy | Native overlay for high/critical threats without relying on JS (**next**) |
+| Multilevel C++ scoring | Shared threat scoring across platforms |
 | Repackaging (iOS) | Team ID / bundle integrity signals (App Store–safe) |
 | Expo | Config plugin for prebuild projects |
 | Threat tuning | Per-threat severity config and allowlists |

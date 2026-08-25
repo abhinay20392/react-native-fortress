@@ -27,6 +27,10 @@ export interface FortressChecksConfig {
   root?: boolean;
   jailbreak?: boolean;
   sslPinning?: boolean;
+  /**
+   * Emulator / Simulator detection. Opt-in (default off).
+   * Severity is medium — alone it does not mark the device compromised.
+   */
   emulator?: boolean;
   /** Android only — requires `expectedSigningCertificateSha256` in config */
   repackaging?: boolean;
@@ -39,7 +43,12 @@ export interface FortressConfig {
   pollIntervalMs?: number;
   /** Enable or disable individual check categories */
   checks?: FortressChecksConfig;
-  /** Response policy for critical threats */
+  /**
+   * Response policy when a **high or critical** threat is detected during monitoring.
+   * - `log` — log + emit events (default)
+   * - `exit` — terminate the process (triggers on high **or** critical in v1.x)
+   * - `block_ui` — reserved; not implemented until v2 (`block_ui` native overlay)
+   */
   onCriticalThreat?: CriticalThreatAction;
   /**
    * SHA-256 hex digest of your release signing certificate (Android only).

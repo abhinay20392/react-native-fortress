@@ -8,6 +8,7 @@
 -keep class com.fortress.tamper.** { *; }
 -keep class com.fortress.ssl.** { *; }
 -keep class com.fortress.repackaging.** { *; }
+-keep class com.fortress.emulator.** { *; }
 
 # OkHttp CertificatePinner uses string pins configured at runtime.
 -keepclassmembers class okhttp3.CertificatePinner$Builder {

@@ -98,8 +98,10 @@ export function DeviceIntegrityScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Device Integrity</Text>
       <Text style={styles.subtitle}>
-        Native root / jailbreak checks. Tamper stays off here (see Tamper tab).
-        On iOS Simulator, some probes are skipped to avoid host false positives.
+        Native root / jailbreak checks. Emulator detection is on in the example
+        (medium severity). Tamper stays off here (see Tamper tab). On iOS
+        Simulator, some jailbreak probes are skipped to avoid host false
+        positives.
       </Text>
 
       {loading ? <ActivityIndicator size="large" color="#38bdf8" /> : null}

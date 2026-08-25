@@ -1,6 +1,7 @@
 #import "ThreatOrchestrator.h"
 
 #import "FortressEventEmitter.h"
+#import "emulator/EmulatorDetector.h"
 #import "jailbreak/JailbreakDetector.h"
 #import "tamper/TamperDetector.h"
 
@@ -13,6 +14,7 @@
 @property (nonatomic, assign) BOOL configured;
 @property (nonatomic, assign) BOOL checksJailbreak;
 @property (nonatomic, assign) BOOL checksTamper;
+@property (nonatomic, assign) BOOL checksEmulator;
 @property (nonatomic, copy) NSString *onCriticalThreat;
 @property (nonatomic, assign, readwrite) NSTimeInterval lastPollAt;
 @property (nonatomic, copy, readwrite) NSArray<FortressThreatResult *> *lastThreats;
@@ -30,6 +32,7 @@
         _monitoring = NO;
         _checksJailbreak = YES;
         _checksTamper = YES;
+        _checksEmulator = NO;
         _onCriticalThreat = @"log";
         _lastThreats = @[];
         _configured = NO;
@@ -71,6 +74,10 @@
         if ([tamper isKindOfClass:[NSNumber class]]) {
             self.checksTamper = [tamper boolValue];
         }
+        id emulator = checks[@"emulator"];
+        if ([emulator isKindOfClass:[NSNumber class]]) {
+            self.checksEmulator = [emulator boolValue];
+        }
     }
 
     id criticalAction = config[@"onCriticalThreat"];
@@ -111,11 +118,21 @@
     return [TamperDetector runChecks];
 }
 
+- (NSArray<FortressThreatResult *> *)runEmulatorChecks
+{
+    if (!self.checksEmulator) {
+        return @[];
+    }
+
+    return [EmulatorDetector runChecks];
+}
+
 - (NSArray<FortressThreatResult *> *)runAllChecks
 {
     NSMutableArray<FortressThreatResult *> *threats = [NSMutableArray array];
     [threats addObjectsFromArray:[self runIntegrityChecks]];
     [threats addObjectsFromArray:[self runTamperChecks]];
+    [threats addObjectsFromArray:[self runEmulatorChecks]];
     return threats;
 }
 
@@ -203,14 +220,16 @@
         }
     }
 
+    // v1.x: exit triggers on high OR critical (name is historical).
+    // v2 will split this via exitOn — see docs/V2_ROADMAP.md M3.1.
     if ([self.onCriticalThreat isEqualToString:@"exit"] && (hasCritical || hasHigh)) {
-        NSLog(@"[Fortress] Critical threat detected — exiting");
+        NSLog(@"[Fortress] High/critical threat detected — exiting (onCriticalThreat=exit)");
         exit(0);
         return;
     }
 
     if ([self.onCriticalThreat isEqualToString:@"block_ui"] && (hasCritical || hasHigh)) {
-        NSLog(@"[Fortress] Critical threat detected — block_ui not yet implemented");
+        NSLog(@"[Fortress] High/critical threat detected — block_ui not yet implemented");
         return;
     }
 

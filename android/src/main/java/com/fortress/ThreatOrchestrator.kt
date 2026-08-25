@@ -6,6 +6,7 @@ import android.util.Log
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableMap
+import com.fortress.emulator.EmulatorDetector
 import com.fortress.repackaging.RepackagingDetector
 import com.fortress.root.RootDetector
 import com.fortress.root.ThreatResult
@@ -26,6 +27,7 @@ class ThreatOrchestrator(
   private var monitoring = false
   private var checksRoot = true
   private var checksTamper = true
+  private var checksEmulator = false
   private var checksRepackaging = false
   private var onCriticalThreat = "log"
 
@@ -82,6 +84,9 @@ class ThreatOrchestrator(
         if (checks.hasKey("tamper")) {
           checksTamper = checks.getBoolean("tamper")
         }
+        if (checks.hasKey("emulator")) {
+          checksEmulator = checks.getBoolean("emulator")
+        }
         if (checks.hasKey("repackaging")) {
           checksRepackaging = checks.getBoolean("repackaging")
         }
@@ -126,6 +131,14 @@ class ThreatOrchestrator(
     return TamperDetector.runChecks()
   }
 
+  fun runEmulatorChecks(): List<ThreatResult> {
+    if (!checksEmulator) {
+      return emptyList()
+    }
+
+    return EmulatorDetector.runChecks()
+  }
+
   fun runRepackagingChecks(): List<ThreatResult> {
     if (!checksRepackaging || !RepackagingDetector.isEnabled()) {
       return emptyList()
@@ -138,6 +151,7 @@ class ThreatOrchestrator(
     val threats = mutableListOf<ThreatResult>()
     threats.addAll(runIntegrityChecks())
     threats.addAll(runTamperChecks())
+    threats.addAll(runEmulatorChecks())
     threats.addAll(runRepackagingChecks())
     return threats
   }
@@ -169,15 +183,17 @@ class ThreatOrchestrator(
     }
 
     when (onCriticalThreat) {
+      // v1.x: exit triggers on high OR critical (name is historical).
+      // v2 will split this via exitOn — see docs/V2_ROADMAP.md M3.1.
       "exit" -> {
         if (hasCritical || hasHigh) {
-          Log.e(TAG, "Critical threat detected — exiting")
+          Log.e(TAG, "High/critical threat detected — exiting (onCriticalThreat=exit)")
           android.os.Process.killProcess(android.os.Process.myPid())
         }
       }
       "block_ui" -> {
         if (hasCritical || hasHigh) {
-          Log.w(TAG, "Critical threat detected — block_ui not yet implemented")
+          Log.w(TAG, "High/critical threat detected — block_ui not yet implemented")
         }
       }
       else -> {

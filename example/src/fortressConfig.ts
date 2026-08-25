@@ -13,6 +13,8 @@ export function exampleFortressConfig(
     root: true,
     jailbreak: true,
     tamper: !__DEV__,
+    /** Opt-in: useful on emulator/simulator demos; leave off for physical-device integrity demos if noisy. */
+    emulator: true,
     sslPinning: false,
     repackaging: false,
     ...overrides.checks,
