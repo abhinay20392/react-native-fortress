@@ -11,6 +11,7 @@ import com.fortress.repackaging.RepackagingDetector
 import com.fortress.root.RootDetector
 import com.fortress.root.ThreatResult
 import com.fortress.tamper.TamperDetector
+import com.fortress.ui.UiBlocker
 
 typealias ThreatEmitter = (ThreatResult) -> Unit
 
@@ -57,7 +58,7 @@ class ThreatOrchestrator(
         lastThreats = threats
 
         if (threats.isNotEmpty()) {
-          handleThreats(threats)
+          respondToThreats(threats)
         }
 
         handler.postDelayed(this, pollIntervalMs)
@@ -160,6 +161,18 @@ class ThreatOrchestrator(
     return ThreatScoring.isCompromised(runAllChecks())
   }
 
+  /** Apply emit + onCriticalThreat policy (monitoring poll or on-demand runChecks). */
+  fun respondToThreats(threats: List<ThreatResult>) {
+    if (threats.isEmpty()) {
+      return
+    }
+    handleThreats(threats)
+  }
+
+  fun showBlockOverlay(message: String) {
+    UiBlocker.show(reactContext, message, force = true)
+  }
+
   fun destroy() {
     stopPolling()
     handlerThread.quitSafely()
@@ -193,7 +206,8 @@ class ThreatOrchestrator(
       }
       "block_ui" -> {
         if (hasCritical || hasHigh) {
-          Log.w(TAG, "High/critical threat detected — block_ui not yet implemented")
+          Log.e(TAG, "High/critical threat detected — showing block_ui overlay")
+          UiBlocker.show(reactContext, threats)
         }
       }
       else -> {

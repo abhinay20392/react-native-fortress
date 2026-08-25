@@ -16,6 +16,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSArray<FortressThreatResult *> *)runIntegrityChecks;
 - (NSArray<FortressThreatResult *> *)runTamperChecks;
 - (NSArray<FortressThreatResult *> *)runAllChecks;
+- (void)respondToThreats:(NSArray<FortressThreatResult *> *)threats;
+- (void)showBlockOverlayWithMessage:(NSString *)message;
 - (BOOL)isDeviceCompromised;
 - (void)destroy;
 

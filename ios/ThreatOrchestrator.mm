@@ -4,6 +4,7 @@
 #import "emulator/EmulatorDetector.h"
 #import "jailbreak/JailbreakDetector.h"
 #import "tamper/TamperDetector.h"
+#import "ui/UiBlocker.h"
 
 @interface ThreatOrchestrator ()
 
@@ -200,8 +201,21 @@
     self.lastThreats = threats;
 
     if (threats.count > 0) {
-        [self handleThreats:threats];
+        [self respondToThreats:threats];
     }
+}
+
+- (void)respondToThreats:(NSArray<FortressThreatResult *> *)threats
+{
+    if (threats.count == 0) {
+        return;
+    }
+    [self handleThreats:threats];
+}
+
+- (void)showBlockOverlayWithMessage:(NSString *)message
+{
+    [UiBlocker showWithMessage:message force:YES];
 }
 
 - (void)handleThreats:(NSArray<FortressThreatResult *> *)threats
@@ -229,7 +243,18 @@
     }
 
     if ([self.onCriticalThreat isEqualToString:@"block_ui"] && (hasCritical || hasHigh)) {
-        NSLog(@"[Fortress] High/critical threat detected — block_ui not yet implemented");
+        NSMutableArray<NSString *> *lines = [NSMutableArray array];
+        for (FortressThreatResult *threat in threats) {
+            if ([threat.severity isEqualToString:@"high"] ||
+                [threat.severity isEqualToString:@"critical"]) {
+                [lines addObject:[NSString stringWithFormat:@"• %@: %@", threat.type, threat.message]];
+            }
+        }
+        NSString *summary = lines.count > 0
+                                ? [lines componentsJoinedByString:@"\n"]
+                                : @"A high or critical security threat was detected.";
+        NSLog(@"[Fortress] High/critical threat detected — showing block_ui overlay");
+        [UiBlocker showWithMessage:summary];
         return;
     }
 

@@ -30,11 +30,14 @@ class FortressModule(reactContext: ReactApplicationContext) :
   }
 
   override fun runChecks(promise: Promise) {
-    val threats = Arguments.createArray()
-    orchestrator.runAllChecks().forEach { threat ->
-      threats.pushMap(threatToMap(threat))
+    val threats = orchestrator.runAllChecks()
+    val payload = Arguments.createArray()
+    threats.forEach { threat ->
+      payload.pushMap(threatToMap(threat))
     }
-    promise.resolve(threats)
+    // Enforce onCriticalThreat for on-demand checks too (not only background polls).
+    orchestrator.respondToThreats(threats)
+    promise.resolve(payload)
   }
 
   override fun isDeviceCompromised(promise: Promise) {
@@ -72,6 +75,15 @@ class FortressModule(reactContext: ReactApplicationContext) :
     }
     status.putInt("lastThreatCount", orchestrator.lastThreats.size)
     promise.resolve(status)
+  }
+
+  override fun showBlockOverlay(message: String, promise: Promise) {
+    try {
+      orchestrator.showBlockOverlay(message)
+      promise.resolve(null)
+    } catch (error: Exception) {
+      promise.reject("E_BLOCK_UI", error.message, error)
+    }
   }
 
   override fun addListener(eventName: String) {

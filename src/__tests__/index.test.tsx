@@ -9,7 +9,7 @@ describe('Fortress (JS fallback)', () => {
 
     expect(status.configured).toBe(true);
     expect(status.monitoring).toBe(true);
-    expect(status.version).toBe('1.0.1');
+    expect(status.version).toBe('1.1.0');
   });
 
   it('returns stub threats from runChecks', async () => {
@@ -33,6 +33,10 @@ describe('Fortress (JS fallback)', () => {
 
     expect(subscription.remove).toEqual(expect.any(Function));
     subscription.remove();
+  });
+
+  it('supports showBlockOverlay in stub mode', async () => {
+    await expect(Fortress.showBlockOverlay('demo')).resolves.toBeUndefined();
   });
 
   it('returns stub pinned fetch result', async () => {

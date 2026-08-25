@@ -74,8 +74,12 @@ export const Fortress = {
       configured,
       sslPinningConfigured,
       platform: 'android',
-      version: '1.0.1',
+      version: '1.1.0',
     };
+  },
+
+  async showBlockOverlay(_message?: string): Promise<void> {
+    // Stub — native platforms show the real overlay.
   },
 
   addThreatListener(

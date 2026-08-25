@@ -76,6 +76,7 @@ subscription.remove();
 | `getStatus()` | Monitoring state, platform, version, pinning status |
 | `configureSslPinning(pins)` | Set SPKI pins per host |
 | `fetchPinned(url)` | Native GET request using the pinned TLS stack |
+| `showBlockOverlay(message?)` | Force-show the native block_ui overlay (demos / custom policy) |
 | `addThreatListener(cb)` | Subscribe to live threat events |
 
 ### `configure` options
@@ -92,7 +93,6 @@ await Fortress.configure({
     repackaging: false, // Android only (see below)
   },
   // Triggers on high OR critical threats (v1.x). Prefer 'log' until you need hard fail.
-  // 'block_ui' is reserved — not implemented yet (v2).
   onCriticalThreat: 'log', // 'log' | 'block_ui' | 'exit'
   expectedSigningCertificateSha256: '...', // required when repackaging is enabled
 });
@@ -104,10 +104,17 @@ await Fortress.configure({
 |-------|----------|
 | `log` (default) | Log threats and emit `onFortressThreat` events |
 | `exit` | Kill the process when a **high or critical** threat is seen during monitoring |
-| `block_ui` | Not implemented yet — falls back to a native log warning |
+| `block_ui` | Show a **native** full-screen overlay (non-dismissible; does not rely on JS) |
 
-The option name says “critical,” but **`exit` currently applies to high and critical**. v2 will introduce an explicit `exitOn` setting.
+The option name says “critical,” but **`exit` / `block_ui` currently apply to high and critical**. These policies run when **monitoring** detects threats (background poll), not from a standalone `runChecks()` alone.
 
+`block_ui` needs a visible activity/window (app in foreground). It cannot be dismissed by the user in this release — force-quit to recover during testing.
+
+To preview the overlay without waiting for a high/critical threat:
+
+```typescript
+await Fortress.showBlockOverlay('Optional custom message');
+```
 ## Emulator / Simulator detection
 
 Opt-in via `checks.emulator: true` (default **off**). Emits a single `emulator` threat at **medium** severity, so it alone does **not** make `isDeviceCompromised()` true.
@@ -260,41 +267,7 @@ yarn build
 
 ## Future work
 
-See [docs/V2_ROADMAP.md](docs/V2_ROADMAP.md) for the v2 plan. v1.x patches (false-positive tuning, SSL/repackaging docs) land before the major release.
-
-### Multilevel defense (JS → Native → C++)
-
-Today, JavaScript is a thin typed facade and most logic runs in Kotlin (Android) and Objective-C++ (iOS). A stronger model is planned where each layer corroborates the others — bypassing JS alone should not be enough.
-
-```
-┌─────────────────────────────────────┐
-│  JS        policy, UX, bundle checks │
-├─────────────────────────────────────┤
-│  Native    platform APIs, orchestration │
-├─────────────────────────────────────┤
-│  C++       shared scoring, sensitive logic │
-└─────────────────────────────────────┘
-```
-
-| Layer | Planned role |
-|-------|----------------|
-| **JavaScript** | Optional release bundle integrity checks, bridge tamper detection, dev/prod policy |
-| **Native** | Root/jailbreak, Frida/debugger, SSL pinning, event emission (current focus) |
-| **C++** | Shared threat scoring, constant-time compares, pin validation helpers — harder to patch via the JS bridge alone |
-
-Layers should **corroborate** each other (e.g. C++ flags a threat → native emits → app responds), not trust a single boolean from one tier.
-
-### Other planned features
-
-| Area | Direction |
-|------|-----------|
-| `block_ui` policy | Native overlay for high/critical threats without relying on JS (**next**) |
-| Multilevel C++ scoring | Shared threat scoring across platforms |
-| Repackaging (iOS) | Team ID / bundle integrity signals (App Store–safe) |
-| Expo | Config plugin for prebuild projects |
-| Threat tuning | Per-threat severity config and allowlists |
-| Tests | Native unit tests + example-app E2E on Android and iOS |
-| Server attestation | Optional Play Integrity / DeviceCheck integration |
+v1.1 adds emulator detection, native `block_ui`, and `showBlockOverlay()` for demos. Planned v2 work includes shared C++ scoring, SSL `fetchPinned` options, threat tuning, Expo plugin, and optional Play Integrity / DeviceCheck modules.
 
 No mobile security library is unbreakable on a fully compromised device. The goal is layered defense, early detection, and configurable response — with server-side risk scoring for high-value flows.
 

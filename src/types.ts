@@ -47,7 +47,7 @@ export interface FortressConfig {
    * Response policy when a **high or critical** threat is detected during monitoring.
    * - `log` — log + emit events (default)
    * - `exit` — terminate the process (triggers on high **or** critical in v1.x)
-   * - `block_ui` — reserved; not implemented until v2 (`block_ui` native overlay)
+   * - `block_ui` — native full-screen overlay (non-dismissible; does not rely on JS)
    */
   onCriticalThreat?: CriticalThreatAction;
   /**

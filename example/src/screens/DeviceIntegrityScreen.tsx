@@ -178,6 +178,62 @@ export function DeviceIntegrityScreen() {
         )}
       </View>
 
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>block_ui overlay</Text>
+        <Text style={styles.hint}>
+          Default policy is `log`, so you will not see a blocker until you enable
+          it. Policy only fires on high/critical threats (emulator alone is
+          medium). Use the demo button to preview the native overlay anytime.
+        </Text>
+        <Pressable
+          style={[styles.button, styles.buttonDanger]}
+          onPress={async () => {
+            try {
+              await Fortress.showBlockOverlay(
+                'Demo: native block_ui overlay (force-quit app to dismiss).'
+              );
+            } catch (err) {
+              setError(
+                err instanceof Error ? err.message : 'Failed to show overlay'
+              );
+            }
+          }}
+        >
+          <Text style={styles.buttonText}>Show block_ui demo</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.buttonSecondary, { marginTop: 8 }]}
+          onPress={async () => {
+            try {
+              await configureExampleFortress({
+                onCriticalThreat: 'block_ui',
+                monitor: true,
+                pollIntervalMs: 10_000,
+                checks: {
+                  root: true,
+                  jailbreak: true,
+                  emulator: true,
+                  tamper: false,
+                },
+              });
+              await Fortress.startMonitoring();
+              await runChecks();
+              setError(null);
+            } catch (err) {
+              setError(
+                err instanceof Error
+                  ? err.message
+                  : 'Failed to enable block_ui policy'
+              );
+            }
+          }}
+        >
+          <Text style={styles.buttonSecondaryText}>
+            Enable block_ui policy + run checks
+          </Text>
+        </Pressable>
+      </View>
+
       <Pressable style={styles.button} onPress={() => runChecks()}>
         <Text style={styles.buttonText}>Run checks again</Text>
       </Pressable>
@@ -264,6 +320,21 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
+  },
+  buttonDanger: {
+    backgroundColor: '#b91c1c',
+    marginTop: 8,
+  },
+  buttonSecondary: {
+    backgroundColor: '#334155',
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  buttonSecondaryText: {
+    color: '#e2e8f0',
+    fontWeight: '600',
+    fontSize: 16,
   },
   buttonText: {
     color: '#ffffff',

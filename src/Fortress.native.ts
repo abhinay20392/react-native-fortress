@@ -63,6 +63,12 @@ export const Fortress = {
     return status as FortressStatus;
   },
 
+  showBlockOverlay(message?: string): Promise<void> {
+    return NativeFortress.showBlockOverlay(
+      message ?? 'Security threat detected (demo).'
+    );
+  },
+
   addThreatListener(
     callback: (event: ThreatEvent) => void
   ): FortressSubscription {

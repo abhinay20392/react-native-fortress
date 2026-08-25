@@ -3,6 +3,7 @@
 #import "FortressEventEmitter.h"
 #import "jailbreak/JailbreakDetector.h"
 #import "ssl/SslPinningManager.h"
+#import "ui/UiBlocker.h"
 
 @implementation Fortress
 
@@ -40,10 +41,13 @@
 - (void)runChecks:(RCTPromiseResolveBlock)resolve
            reject:(RCTPromiseRejectBlock)reject
 {
+    NSArray<FortressThreatResult *> *results = [self.orchestrator runAllChecks];
     NSMutableArray *threats = [NSMutableArray array];
-    for (FortressThreatResult *threat in [self.orchestrator runAllChecks]) {
+    for (FortressThreatResult *threat in results) {
         [threats addObject:[threat toDictionary]];
     }
+    // Enforce onCriticalThreat for on-demand checks too (not only background polls).
+    [self.orchestrator respondToThreats:results];
     resolve(threats);
 }
 
@@ -85,7 +89,7 @@
         @"configured": @(self.orchestrator.configured),
         @"sslPinningConfigured": @([SslPinningManager shared].configured),
         @"platform": @"ios",
-        @"version": @"1.0.1",
+        @"version": @"1.1.0",
         @"pollIntervalMs": @(self.orchestrator.configuredPollIntervalMs),
         @"lastThreatCount": @(self.orchestrator.lastThreats.count),
     } mutableCopy];
@@ -95,6 +99,15 @@
     }
 
     resolve(status);
+}
+
+- (void)showBlockOverlay:(NSString *)message
+                 resolve:(RCTPromiseResolveBlock)resolve
+                  reject:(RCTPromiseRejectBlock)reject
+{
+    NSString *text = message.length > 0 ? message : @"Security threat detected (demo).";
+    [self.orchestrator showBlockOverlayWithMessage:text];
+    resolve(nil);
 }
 
 - (void)addListener:(NSString *)eventName

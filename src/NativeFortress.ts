@@ -9,6 +9,8 @@ export interface Spec extends TurboModule {
   configureSslPinning(pins: Object[]): Promise<void>;
   performPinnedRequest(url: string): Promise<Object>;
   getStatus(): Promise<Object>;
+  /** Show the native block_ui overlay immediately (for demos / custom enforcement). */
+  showBlockOverlay(message: string): Promise<void>;
   addListener(eventName: string): void;
   removeListeners(count: number): void;
 }
