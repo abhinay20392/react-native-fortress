@@ -59,6 +59,8 @@
     threat.type = type;
     threat.severity = severity;
     threat.message = message;
+    threat.detector = @"TamperDetector";
+    threat.code = [NSString stringWithFormat:@"TAMPER_%@", [type uppercaseString]];
     return threat;
 }
 

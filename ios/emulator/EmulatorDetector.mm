@@ -58,6 +58,9 @@
     threat.severity = @"medium";
     threat.message = [NSString stringWithFormat:@"Emulator / Simulator indicators: %@",
                                                 [unique componentsJoinedByString:@"; "]];
+    threat.code = @"EMULATOR_DETECTED";
+    threat.detector = @"EmulatorDetector";
+    threat.evidence = @{ @"signals": [unique copy] };
     return @[ threat ];
 }
 

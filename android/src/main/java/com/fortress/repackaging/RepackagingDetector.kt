@@ -37,6 +37,8 @@ object RepackagingDetector {
         type = "repackaging",
         severity = "critical",
         message = "App signing certificate does not match the expected release signature",
+        code = "REPACKAGING_CERT_MISMATCH",
+        detector = "RepackagingDetector",
       )
     )
   }

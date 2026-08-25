@@ -13,10 +13,11 @@ NS_ASSUME_NONNULL_BEGIN
 + (nullable NSString *)spkiHashForCertificate:(SecCertificateRef)certificate;
 
 - (void)configurePins:(NSArray *)pins;
-- (void)performPinnedRequestWithURL:(NSString *)url
-                            resolve:(void (^)(NSDictionary *result))resolve
-                             reject:(void (^)(NSString *code, NSString *message, NSError *_Nullable error))reject
-                         emitThreat:(void (^)(NSDictionary *threat))emitThreat;
+- (NSDictionary *)pinningStatus;
+- (void)performPinnedRequestWithOptions:(NSDictionary *)options
+                                resolve:(void (^)(NSDictionary *result))resolve
+                                 reject:(void (^)(NSString *code, NSString *message, NSError *_Nullable error))reject
+                             emitThreat:(void (^)(NSDictionary *threat))emitThreat;
 
 @end
 

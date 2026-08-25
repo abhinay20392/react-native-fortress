@@ -10,6 +10,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign, readonly) BOOL isMonitoring;
 @property (nonatomic, assign, readonly) NSTimeInterval configuredPollIntervalMs;
 @property (nonatomic, assign, readonly) NSTimeInterval lastPollAt;
+@property (nonatomic, copy, readonly, nullable) NSString *configuredMode;
+@property (nonatomic, copy, readonly) NSString *configuredExitOn;
 
 - (void)configure:(NSDictionary *)config;
 - (void)setMonitoring:(BOOL)monitoring;
@@ -19,6 +21,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)respondToThreats:(NSArray<FortressThreatResult *> *)threats;
 - (void)showBlockOverlayWithMessage:(NSString *)message;
 - (BOOL)isDeviceCompromised;
+- (NSInteger)threatConfidence;
 - (void)destroy;
 
 @property (nonatomic, copy, readonly) NSArray<FortressThreatResult *> *lastThreats;

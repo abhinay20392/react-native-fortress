@@ -7,6 +7,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy) NSString *type;
 @property (nonatomic, copy) NSString *severity;
 @property (nonatomic, copy) NSString *message;
+@property (nonatomic, copy, nullable) NSString *code;
+@property (nonatomic, copy, nullable) NSString *detector;
+@property (nonatomic, copy, nullable) NSDictionary *evidence;
 
 - (NSDictionary *)toDictionary;
 

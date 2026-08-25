@@ -1,6 +1,6 @@
 {
   "name": "react-native-fortress",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "Native-first mobile security for React Native: anti-tampering, root/jailbreak detection, SSL pinning",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
@@ -20,6 +20,8 @@
     "cpp",
     "*.podspec",
     "react-native.config.js",
+    "MIGRATION_v2.md",
+    "CHANGELOG.md",
     "!ios/build",
     "!android/build",
     "!android/gradle",

@@ -3,6 +3,7 @@ package com.fortress
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
+import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableMap
@@ -31,12 +32,24 @@ class ThreatOrchestrator(
   private var checksEmulator = false
   private var checksRepackaging = false
   private var onCriticalThreat = "log"
+  private var exitOn = "high"
+  private var mode: String? = null
+  private var severityOverrides: Map<String, String> = emptyMap()
+  private var allowlist: Set<String> = emptySet()
+  private var dedupeEvents = true
+  private var lastEmittedFingerprint: String? = null
 
   val isMonitoring: Boolean
     get() = monitoring
 
   val configuredPollIntervalMs: Long
     get() = pollIntervalMs
+
+  val configuredMode: String?
+    get() = mode
+
+  val configuredExitOn: String
+    get() = exitOn
 
   var lastPollAt: Long = 0
     private set
@@ -59,6 +72,8 @@ class ThreatOrchestrator(
 
         if (threats.isNotEmpty()) {
           respondToThreats(threats)
+        } else {
+          lastEmittedFingerprint = null
         }
 
         handler.postDelayed(this, pollIntervalMs)
@@ -66,7 +81,13 @@ class ThreatOrchestrator(
     }
 
   fun configure(config: ReadableMap) {
-    configured = true
+    var nextChecksRepackaging = checksRepackaging
+    var expectedCert: String? = null
+    var tamperExplicit = false
+
+    if (config.hasKey("mode")) {
+      mode = config.getString("mode")
+    }
 
     if (config.hasKey("monitor") && config.getBoolean("monitor")) {
       monitoring = true
@@ -84,22 +105,50 @@ class ThreatOrchestrator(
         }
         if (checks.hasKey("tamper")) {
           checksTamper = checks.getBoolean("tamper")
+          tamperExplicit = true
         }
         if (checks.hasKey("emulator")) {
           checksEmulator = checks.getBoolean("emulator")
         }
         if (checks.hasKey("repackaging")) {
-          checksRepackaging = checks.getBoolean("repackaging")
+          nextChecksRepackaging = checks.getBoolean("repackaging")
         }
       }
     }
 
     if (config.hasKey("expectedSigningCertificateSha256")) {
-      RepackagingDetector.configure(config.getString("expectedSigningCertificateSha256"))
+      expectedCert = config.getString("expectedSigningCertificateSha256")
+      RepackagingDetector.configure(expectedCert)
+    }
+
+    if (nextChecksRepackaging) {
+      val hash = expectedCert?.trim().orEmpty().ifEmpty {
+        // Already configured earlier in process lifetime
+        if (RepackagingDetector.isEnabled()) "configured" else ""
+      }
+      if (hash.isEmpty()) {
+        throw IllegalArgumentException(
+          "checks.repackaging is true but expectedSigningCertificateSha256 is missing",
+        )
+      }
+    }
+    checksRepackaging = nextChecksRepackaging
+
+    // Soft mode defaults when tamper was not explicitly set.
+    if (!tamperExplicit) {
+      when (mode) {
+        "dev" -> checksTamper = false
+        "prod" -> checksTamper = true
+      }
     }
 
     if (config.hasKey("onCriticalThreat")) {
       onCriticalThreat = config.getString("onCriticalThreat") ?: "log"
+    }
+
+    if (config.hasKey("exitOn")) {
+      val value = config.getString("exitOn")
+      exitOn = if (value == "critical") "critical" else "high"
     }
 
     if (config.hasKey("scoring")) {
@@ -114,6 +163,23 @@ class ThreatOrchestrator(
         )
       }
     }
+
+    if (config.hasKey("threatTuning")) {
+      val tuning = config.getMap("threatTuning")
+      if (tuning != null) {
+        if (tuning.hasKey("allowlist")) {
+          allowlist = ThreatTuning.parseAllowlist(tuning.getArray("allowlist"))
+        }
+        if (tuning.hasKey("severityOverrides")) {
+          severityOverrides = ThreatTuning.parseSeverityOverrides(tuning.getMap("severityOverrides"))
+        }
+        if (tuning.hasKey("dedupeEvents")) {
+          dedupeEvents = tuning.getBoolean("dedupeEvents")
+        }
+      }
+    }
+
+    configured = true
 
     if (monitoring) {
       startPolling()
@@ -167,16 +233,21 @@ class ThreatOrchestrator(
     threats.addAll(runTamperChecks())
     threats.addAll(runEmulatorChecks())
     threats.addAll(runRepackagingChecks())
-    return threats
+    return ThreatTuning.apply(threats, allowlist, severityOverrides)
   }
 
   fun isDeviceCompromised(): Boolean {
     return ThreatScoring.isCompromised(runAllChecks())
   }
 
+  fun getThreatConfidence(): Int {
+    return ThreatScoring.confidence(runAllChecks())
+  }
+
   /** Apply emit + onCriticalThreat policy (monitoring poll or on-demand runChecks). */
   fun respondToThreats(threats: List<ThreatResult>) {
     if (threats.isEmpty()) {
+      lastEmittedFingerprint = null
       return
     }
     handleThreats(threats)
@@ -200,32 +271,44 @@ class ThreatOrchestrator(
     handler.removeCallbacks(pollRunnable)
   }
 
-  private fun handleThreats(threats: List<ThreatResult>) {
-    val hasCritical = threats.any { it.severity == "critical" }
-    val hasHigh = threats.any { it.severity == "high" }
+  private fun meetsExitThreshold(threats: List<ThreatResult>): Boolean {
+    return if (exitOn == "critical") {
+      threats.any { it.severity == "critical" }
+    } else {
+      threats.any { it.severity == "high" || it.severity == "critical" }
+    }
+  }
 
-    threats.forEach { threat ->
-      emitThreat(threat)
+  private fun handleThreats(threats: List<ThreatResult>) {
+    val fingerprint = ThreatTuning.fingerprint(threats)
+    val shouldEmit = !dedupeEvents || fingerprint != lastEmittedFingerprint
+    if (shouldEmit) {
+      lastEmittedFingerprint = fingerprint
+      threats.forEach { threat ->
+        emitThreat(threat)
+      }
     }
 
+    val shouldEnforce = meetsExitThreshold(threats)
+
     when (onCriticalThreat) {
-      // v1.x: exit triggers on high OR critical (name is historical).
-      // v2 will split this via exitOn — see docs/V2_ROADMAP.md M3.1.
       "exit" -> {
-        if (hasCritical || hasHigh) {
-          Log.e(TAG, "High/critical threat detected — exiting (onCriticalThreat=exit)")
+        if (shouldEnforce) {
+          Log.e(TAG, "Threat at/above exitOn=$exitOn — exiting (onCriticalThreat=exit)")
           android.os.Process.killProcess(android.os.Process.myPid())
         }
       }
       "block_ui" -> {
-        if (hasCritical || hasHigh) {
-          Log.e(TAG, "High/critical threat detected — showing block_ui overlay")
+        if (shouldEnforce) {
+          Log.e(TAG, "Threat at/above exitOn=$exitOn — showing block_ui overlay")
           UiBlocker.show(reactContext, threats)
         }
       }
       else -> {
-        threats.forEach { threat ->
-          Log.w(TAG, "Threat [${threat.severity}] ${threat.type}: ${threat.message}")
+        if (shouldEmit) {
+          threats.forEach { threat ->
+            Log.w(TAG, "Threat [${threat.severity}] ${threat.type}: ${threat.message}")
+          }
         }
       }
     }
@@ -239,12 +322,42 @@ class ThreatOrchestrator(
       @Suppress("UNUSED_PARAMETER") reactContext: ReactApplicationContext,
       threat: ThreatResult,
     ): WritableMap {
-      val map = com.facebook.react.bridge.Arguments.createMap()
+      val map = Arguments.createMap()
       map.putString("type", threat.type)
       map.putString("severity", threat.severity)
       map.putString("message", threat.message)
       map.putString("platform", "android")
       map.putDouble("timestamp", System.currentTimeMillis().toDouble())
+      threat.code?.let { map.putString("code", it) }
+      threat.detector?.let { map.putString("detector", it) }
+      threat.evidence?.let { evidence ->
+        val evidenceMap = Arguments.createMap()
+        evidence.forEach { (key, value) ->
+          when (value) {
+            is String -> evidenceMap.putString(key, value)
+            is Int -> evidenceMap.putInt(key, value)
+            is Long -> evidenceMap.putDouble(key, value.toDouble())
+            is Double -> evidenceMap.putDouble(key, value)
+            is Float -> evidenceMap.putDouble(key, value.toDouble())
+            is Boolean -> evidenceMap.putBoolean(key, value)
+            is List<*> -> {
+              val array = Arguments.createArray()
+              value.forEach { item ->
+                when (item) {
+                  is String -> array.pushString(item)
+                  is Int -> array.pushInt(item)
+                  is Double -> array.pushDouble(item)
+                  is Boolean -> array.pushBoolean(item)
+                  else -> array.pushString(item?.toString())
+                }
+              }
+              evidenceMap.putArray(key, array)
+            }
+            else -> evidenceMap.putString(key, value.toString())
+          }
+        }
+        map.putMap("evidence", evidenceMap)
+      }
       return map
     }
   }

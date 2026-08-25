@@ -20,6 +20,23 @@
           resolve:(RCTPromiseResolveBlock)resolve
            reject:(RCTPromiseRejectBlock)reject
 {
+    id checks = config[@"checks"];
+    if ([checks isKindOfClass:[NSDictionary class]]) {
+        id repackaging = checks[@"repackaging"];
+        if ([repackaging isKindOfClass:[NSNumber class]] && [repackaging boolValue]) {
+            NSString *hash = [config[@"expectedSigningCertificateSha256"] isKindOfClass:[NSString class]]
+                                 ? config[@"expectedSigningCertificateSha256"]
+                                 : nil;
+            hash = [hash stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+            if (hash.length == 0) {
+                reject(@"E_CONFIG",
+                       @"checks.repackaging is true but expectedSigningCertificateSha256 is missing",
+                       nil);
+                return;
+            }
+        }
+    }
+
     [self.orchestrator configure:config];
     resolve(nil);
 }
@@ -46,7 +63,6 @@
     for (FortressThreatResult *threat in results) {
         [threats addObject:[threat toDictionary]];
     }
-    // Enforce onCriticalThreat for on-demand checks too (not only background polls).
     [self.orchestrator respondToThreats:results];
     resolve(threats);
 }
@@ -57,6 +73,12 @@
     resolve(@([self.orchestrator isDeviceCompromised]));
 }
 
+- (void)getThreatConfidence:(RCTPromiseResolveBlock)resolve
+                     reject:(RCTPromiseRejectBlock)reject
+{
+    resolve(@([self.orchestrator threatConfidence]));
+}
+
 - (void)configureSslPinning:(NSArray *)pins
                     resolve:(RCTPromiseResolveBlock)resolve
                      reject:(RCTPromiseRejectBlock)reject
@@ -65,11 +87,11 @@
     resolve(nil);
 }
 
-- (void)performPinnedRequest:(NSString *)url
+- (void)performPinnedRequest:(NSDictionary *)options
                      resolve:(RCTPromiseResolveBlock)resolve
                       reject:(RCTPromiseRejectBlock)reject
 {
-    [[SslPinningManager shared] performPinnedRequestWithURL:url
+    [[SslPinningManager shared] performPinnedRequestWithOptions:options
         resolve:^(NSDictionary *result) {
             resolve(result);
         }
@@ -81,6 +103,12 @@
         }];
 }
 
+- (void)getSslPinningStatus:(RCTPromiseResolveBlock)resolve
+                     reject:(RCTPromiseRejectBlock)reject
+{
+    resolve([[SslPinningManager shared] pinningStatus]);
+}
+
 - (void)getStatus:(RCTPromiseResolveBlock)resolve
            reject:(RCTPromiseRejectBlock)reject
 {
@@ -89,10 +117,15 @@
         @"configured": @(self.orchestrator.configured),
         @"sslPinningConfigured": @([SslPinningManager shared].configured),
         @"platform": @"ios",
-        @"version": @"1.1.0",
+        @"version": @"2.0.0",
+        @"exitOn": self.orchestrator.configuredExitOn ?: @"high",
         @"pollIntervalMs": @(self.orchestrator.configuredPollIntervalMs),
         @"lastThreatCount": @(self.orchestrator.lastThreats.count),
     } mutableCopy];
+
+    if (self.orchestrator.configuredMode.length > 0) {
+        status[@"mode"] = self.orchestrator.configuredMode;
+    }
 
     if (self.orchestrator.lastPollAt > 0) {
         status[@"lastPollAt"] = @(self.orchestrator.lastPollAt);

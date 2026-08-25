@@ -44,6 +44,9 @@ jobs:
       - name: Run unit tests
         run: yarn test --maxWorkers=2 --coverage
 
+      - name: Run C++ scoring tests
+        run: yarn test:cpp
+
   build-library:
     runs-on: ubuntu-latest
 

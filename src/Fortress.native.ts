@@ -4,8 +4,10 @@ import type {
   FortressConfig,
   FortressStatus,
   FortressSubscription,
+  PinnedFetchRequest,
   PinnedFetchResult,
   SslPinConfig,
+  SslPinningStatus,
   ThreatEvent,
 } from './types';
 
@@ -20,11 +22,28 @@ function parseThreat(raw: Object): ThreatEvent {
     message: threat.message,
     platform: threat.platform,
     timestamp: threat.timestamp,
+    code: threat.code,
+    detector: threat.detector,
+    evidence: threat.evidence,
   };
 }
 
 function parseThreats(raw: Object[]): ThreatEvent[] {
   return raw.map(parseThreat);
+}
+
+function toPinnedOptions(
+  request: string | PinnedFetchRequest
+): PinnedFetchRequest {
+  if (typeof request === 'string') {
+    return { url: request, method: 'GET' };
+  }
+  return {
+    url: request.url,
+    method: request.method ?? 'GET',
+    headers: request.headers,
+    body: request.body,
+  };
 }
 
 export const Fortress = {
@@ -49,13 +68,30 @@ export const Fortress = {
     return NativeFortress.isDeviceCompromised();
   },
 
+  getThreatConfidence(): Promise<number> {
+    return NativeFortress.getThreatConfidence();
+  },
+
   configureSslPinning(pins: SslPinConfig[]): Promise<void> {
     return NativeFortress.configureSslPinning(pins);
   },
 
-  async fetchPinned(url: string): Promise<PinnedFetchResult> {
-    const result = await NativeFortress.performPinnedRequest(url);
+  /**
+   * Perform a pinned HTTP request.
+   * Accepts a URL string (GET) or `{ url, method?, headers?, body? }`.
+   */
+  async fetchPinned(
+    request: string | PinnedFetchRequest
+  ): Promise<PinnedFetchResult> {
+    const result = await NativeFortress.performPinnedRequest(
+      toPinnedOptions(request)
+    );
     return result as PinnedFetchResult;
+  },
+
+  async getSslPinningStatus(): Promise<SslPinningStatus> {
+    const status = await NativeFortress.getSslPinningStatus();
+    return status as SslPinningStatus;
   },
 
   async getStatus(): Promise<FortressStatus> {

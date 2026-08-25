@@ -32,6 +32,9 @@ object EmulatorDetector {
         type = "emulator",
         severity = "medium",
         message = "Emulator / virtual device indicators: ${signals.joinToString("; ")}",
+        code = "EMULATOR_DETECTED",
+        detector = "EmulatorDetector",
+        evidence = mapOf("signals" to signals),
       ),
     )
   }

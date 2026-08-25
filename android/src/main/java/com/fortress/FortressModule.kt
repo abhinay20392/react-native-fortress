@@ -15,8 +15,14 @@ class FortressModule(reactContext: ReactApplicationContext) :
   private val orchestrator = ThreatOrchestrator(reactContext)
 
   override fun configure(config: ReadableMap, promise: Promise) {
-    orchestrator.configure(config)
-    promise.resolve(null)
+    try {
+      orchestrator.configure(config)
+      promise.resolve(null)
+    } catch (error: IllegalArgumentException) {
+      promise.reject("E_CONFIG", error.message, error)
+    } catch (error: Exception) {
+      promise.reject("E_CONFIG", error.message, error)
+    }
   }
 
   override fun startMonitoring(promise: Promise) {
@@ -35,13 +41,16 @@ class FortressModule(reactContext: ReactApplicationContext) :
     threats.forEach { threat ->
       payload.pushMap(threatToMap(threat))
     }
-    // Enforce onCriticalThreat for on-demand checks too (not only background polls).
     orchestrator.respondToThreats(threats)
     promise.resolve(payload)
   }
 
   override fun isDeviceCompromised(promise: Promise) {
     promise.resolve(orchestrator.isDeviceCompromised())
+  }
+
+  override fun getThreatConfidence(promise: Promise) {
+    promise.resolve(orchestrator.getThreatConfidence())
   }
 
   override fun configureSslPinning(pins: ReadableArray, promise: Promise) {
@@ -53,13 +62,17 @@ class FortressModule(reactContext: ReactApplicationContext) :
     }
   }
 
-  override fun performPinnedRequest(url: String, promise: Promise) {
+  override fun performPinnedRequest(options: ReadableMap, promise: Promise) {
     SslPinningManager.performPinnedRequest(
-      url = url,
+      options = options,
       promise = promise,
       reactContext = reactApplicationContext,
       emitThreat = { threat -> emitThreatEvent(threat) },
     )
+  }
+
+  override fun getSslPinningStatus(promise: Promise) {
+    promise.resolve(SslPinningManager.pinningStatus())
   }
 
   override fun getStatus(promise: Promise) {
@@ -69,6 +82,8 @@ class FortressModule(reactContext: ReactApplicationContext) :
     status.putBoolean("sslPinningConfigured", SslPinningManager.isConfigured())
     status.putString("platform", "android")
     status.putString("version", LibraryInfo.VERSION)
+    status.putString("exitOn", orchestrator.configuredExitOn)
+    orchestrator.configuredMode?.let { status.putString("mode", it) }
     status.putDouble("pollIntervalMs", orchestrator.configuredPollIntervalMs.toDouble())
     if (orchestrator.lastPollAt > 0) {
       status.putDouble("lastPollAt", orchestrator.lastPollAt.toDouble())
@@ -107,13 +122,7 @@ class FortressModule(reactContext: ReactApplicationContext) :
   }
 
   private fun threatToMap(threat: ThreatResult): WritableMap {
-    val map = Arguments.createMap()
-    map.putString("type", threat.type)
-    map.putString("severity", threat.severity)
-    map.putString("message", threat.message)
-    map.putString("platform", "android")
-    map.putDouble("timestamp", System.currentTimeMillis().toDouble())
-    return map
+    return ThreatOrchestrator.threatToMap(reactApplicationContext, threat)
   }
 
   companion object {

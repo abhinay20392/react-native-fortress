@@ -37,6 +37,7 @@ const initialRequestState = (label: string): RequestState => ({
 
 export function SslPinningDemoScreen() {
   const [ready, setReady] = useState(false);
+  const [pinStatusNote, setPinStatusNote] = useState('');
   const [sslEvents, setSslEvents] = useState<ThreatEvent[]>([]);
   const [unpinned, setUnpinned] = useState<RequestState>(
     initialRequestState('Unpinned fetch()')
@@ -65,6 +66,14 @@ export function SslPinningDemoScreen() {
         publicKeyHashes: hashes,
       },
     ]);
+    const status = await Fortress.getSslPinningStatus();
+    setPinStatusNote(
+      `${status.hosts.map((h) => `${h.host}×${h.pinCount}`).join(', ')} — ${
+        status.coversGlobalFetch
+          ? 'global fetch covered (Android OkHttp)'
+          : 'use fetchPinned only (iOS)'
+      }`
+    );
     setReady(true);
   }, []);
 
@@ -108,13 +117,20 @@ export function SslPinningDemoScreen() {
           message: `HTTP ${result.status} — ${result.body.slice(0, 80)}…`,
         });
       } catch (error) {
+        const nativeError = error as {
+          message?: string;
+          code?: string;
+          userInfo?: { reason?: string };
+        };
         const message =
-          error instanceof Error ? error.message : 'Pinned request failed';
+          nativeError.message ??
+          (error instanceof Error ? error.message : 'Pinned request failed');
+        const reason = nativeError.userInfo?.reason ?? nativeError.code;
         setState({
           label,
           loading: false,
           success: false,
-          message: `${message} — verify publicKeyHashes (add a backup pin before cert rotation).`,
+          message: `${reason ? `[${reason}] ` : ''}${message}`,
         });
       }
     },
@@ -140,6 +156,9 @@ export function SslPinningDemoScreen() {
         <Text style={styles.row}>
           Pinning configured: {ready ? 'Yes' : 'No'}
         </Text>
+        {pinStatusNote ? (
+          <Text style={styles.row}>Status: {pinStatusNote}</Text>
+        ) : null}
       </View>
 
       <RequestCard

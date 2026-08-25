@@ -12,13 +12,23 @@
 
 - (NSDictionary *)toDictionary
 {
-    return @{
+    NSMutableDictionary *dict = [@{
         @"type": self.type ?: @"",
         @"severity": self.severity ?: @"",
         @"message": self.message ?: @"",
         @"platform": @"ios",
         @"timestamp": @([[NSDate date] timeIntervalSince1970] * 1000),
-    };
+    } mutableCopy];
+    if (self.code.length > 0) {
+        dict[@"code"] = self.code;
+    }
+    if (self.detector.length > 0) {
+        dict[@"detector"] = self.detector;
+    }
+    if (self.evidence.count > 0) {
+        dict[@"evidence"] = self.evidence;
+    }
+    return dict;
 }
 
 @end
@@ -122,6 +132,8 @@
     threat.type = type;
     threat.severity = severity;
     threat.message = message;
+    threat.detector = @"JailbreakDetector";
+    threat.code = [NSString stringWithFormat:@"JAILBREAK_%@", [type uppercaseString]];
     return threat;
 }
 

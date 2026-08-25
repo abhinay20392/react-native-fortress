@@ -3,17 +3,17 @@ import type { FortressConfig } from 'react-native-fortress';
 
 /**
  * Safe defaults for the example app.
- * In __DEV__, tamper monitoring is off so IDE debuggers do not flood threats / confuse demos.
- * Enable tamper explicitly from the Tamper tab when you want to exercise those checks.
+ * Prefer `mode` over ad-hoc `__DEV__` tamper toggles (v2).
  */
 export function exampleFortressConfig(
   overrides: Partial<FortressConfig> = {}
 ): FortressConfig {
+  const mode = overrides.mode ?? (__DEV__ ? 'dev' : 'prod');
+
   const checks = {
     root: true,
     jailbreak: true,
-    tamper: !__DEV__,
-    /** Opt-in: useful on emulator/simulator demos; leave off for physical-device integrity demos if noisy. */
+    /** Opt-in: useful on emulator/simulator demos. */
     emulator: true,
     sslPinning: false,
     repackaging: false,
@@ -21,11 +21,14 @@ export function exampleFortressConfig(
   };
 
   return {
+    mode,
     monitor: overrides.monitor ?? true,
     pollIntervalMs: overrides.pollIntervalMs ?? 15_000,
     onCriticalThreat: overrides.onCriticalThreat ?? 'log',
+    exitOn: overrides.exitOn ?? 'high',
     expectedSigningCertificateSha256:
       overrides.expectedSigningCertificateSha256,
+    scoring: overrides.scoring,
     checks,
   };
 }
