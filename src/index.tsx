@@ -3,6 +3,7 @@ export type {
   CriticalThreatAction,
   FortressChecksConfig,
   FortressConfig,
+  FortressScoringConfig,
   FortressStatus,
   FortressSubscription,
   PinnedFetchResult,

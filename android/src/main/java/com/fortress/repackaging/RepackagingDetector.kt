@@ -3,6 +3,7 @@ package com.fortress.repackaging
 import android.content.pm.PackageManager
 import android.os.Build
 import com.facebook.react.bridge.ReactApplicationContext
+import com.fortress.ThreatScoring
 import com.fortress.root.ThreatResult
 import java.io.ByteArrayInputStream
 import java.security.MessageDigest
@@ -27,7 +28,7 @@ object RepackagingDetector {
     val expected = expectedSha256 ?: return emptyList()
     val actual = getSigningCertificateSha256(context) ?: return emptyList()
 
-    if (actual.equals(expected, ignoreCase = true)) {
+    if (ThreatScoring.constantTimeEqualsNormalizedHex(actual, expected)) {
       return emptyList()
     }
 

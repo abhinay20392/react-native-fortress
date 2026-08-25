@@ -1,6 +1,7 @@
 #import "ThreatOrchestrator.h"
 
 #import "FortressEventEmitter.h"
+#import "ThreatScoring.h"
 #import "emulator/EmulatorDetector.h"
 #import "jailbreak/JailbreakDetector.h"
 #import "tamper/TamperDetector.h"
@@ -86,6 +87,23 @@
         self.onCriticalThreat = criticalAction;
     }
 
+    id scoring = config[@"scoring"];
+    if ([scoring isKindOfClass:[NSDictionary class]]) {
+        NSDictionary *scoringMap = (NSDictionary *)scoring;
+        NSString *aloneAt =
+            [scoringMap[@"aloneAt"] isKindOfClass:[NSString class]] ? scoringMap[@"aloneAt"] : nil;
+        NSString *countAtOrAbove = [scoringMap[@"countAtOrAbove"] isKindOfClass:[NSString class]]
+                                       ? scoringMap[@"countAtOrAbove"]
+                                       : nil;
+        NSInteger countThreshold = 0;
+        if ([scoringMap[@"countThreshold"] isKindOfClass:[NSNumber class]]) {
+            countThreshold = [scoringMap[@"countThreshold"] integerValue];
+        }
+        [FortressThreatScoring configureWithAloneAt:aloneAt
+                                     countAtOrAbove:countAtOrAbove
+                                     countThreshold:countThreshold];
+    }
+
     if (self.monitoring) {
         [self startPolling];
     }
@@ -139,16 +157,7 @@
 
 - (BOOL)isDeviceCompromised
 {
-    NSArray<FortressThreatResult *> *threats = [self runAllChecks];
-
-    for (FortressThreatResult *threat in threats) {
-        if ([threat.severity isEqualToString:@"high"] ||
-            [threat.severity isEqualToString:@"critical"]) {
-            return YES;
-        }
-    }
-
-    return threats.count >= 2;
+    return [FortressThreatScoring isCompromisedWithThreats:[self runAllChecks]];
 }
 
 - (void)destroy

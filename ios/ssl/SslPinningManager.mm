@@ -1,5 +1,6 @@
 #import "SslPinningManager.h"
 
+#import "ThreatScoring.h"
 #import <CommonCrypto/CommonDigest.h>
 #import <Security/Security.h>
 
@@ -62,7 +63,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         return NO;
     }
 
-    NSMutableSet<NSString *> *allowedPins = [NSMutableSet set];
+    NSMutableArray<NSString *> *allowedPins = [NSMutableArray array];
     for (FortressSslPinEntry *entry in entries) {
         for (NSString *hash in entry.publicKeyHashes) {
             [allowedPins addObject:[SslPinningManager normalizePinHash:hash]];
@@ -77,7 +78,8 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
                 SecCertificateRef certificate =
                     (SecCertificateRef)CFArrayGetValueAtIndex(certificateChain, index);
                 NSString *hash = [SslPinningManager spkiHashForCertificate:certificate];
-                if (hash != nil && [allowedPins containsObject:hash]) {
+                if (hash != nil &&
+                    [FortressThreatScoring constantTimeContains:hash in:allowedPins]) {
                     CFRelease(certificateChain);
                     return YES;
                 }
@@ -89,7 +91,7 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         for (CFIndex index = 0; index < certificateCount; index++) {
             SecCertificateRef certificate = SecTrustGetCertificateAtIndex(serverTrust, index);
             NSString *hash = [SslPinningManager spkiHashForCertificate:certificate];
-            if (hash != nil && [allowedPins containsObject:hash]) {
+            if (hash != nil && [FortressThreatScoring constantTimeContains:hash in:allowedPins]) {
                 return YES;
             }
         }

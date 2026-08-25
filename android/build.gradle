@@ -39,6 +39,19 @@ android {
   defaultConfig {
     minSdkVersion getExtOrDefault("minSdkVersion")
     consumerProguardFiles "proguard-rules.pro"
+
+    externalNativeBuild {
+      cmake {
+        cppFlags "-std=c++17"
+        arguments "-DANDROID_STL=c++_shared"
+      }
+    }
+  }
+
+  externalNativeBuild {
+    cmake {
+      path file("CMakeLists.txt")
+    }
   }
 
   compileOptions {

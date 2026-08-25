@@ -36,6 +36,24 @@ export interface FortressChecksConfig {
   repackaging?: boolean;
 }
 
+/**
+ * Shared C++ scoring policy (Android + iOS). Defaults preserve v1.x behavior.
+ */
+export interface FortressScoringConfig {
+  /**
+   * Any single threat at or above this severity → compromised.
+   * Default: `'high'`.
+   */
+  aloneAt?: ThreatSeverity;
+  /**
+   * Count threats at or above this severity toward aggregate compromise.
+   * Default: `'low'` (any 2+ threats). Set to `'medium'` for “N medium signals”.
+   */
+  countAtOrAbove?: ThreatSeverity;
+  /** Aggregate count threshold. Default: `2`. */
+  countThreshold?: number;
+}
+
 export interface FortressConfig {
   /** Start continuous monitoring when configured */
   monitor?: boolean;
@@ -50,6 +68,11 @@ export interface FortressConfig {
    * - `block_ui` — native full-screen overlay (non-dismissible; does not rely on JS)
    */
   onCriticalThreat?: CriticalThreatAction;
+  /**
+   * Shared native/C++ compromise thresholds.
+   * JS never decides compromise — native detectors feed C++ scoring.
+   */
+  scoring?: FortressScoringConfig;
   /**
    * SHA-256 hex digest of your release signing certificate (Android only).
    * Required when `checks.repackaging` is enabled.

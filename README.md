@@ -72,7 +72,7 @@ subscription.remove();
 | `startMonitoring()` | Start native background polling |
 | `stopMonitoring()` | Stop native background polling |
 | `runChecks()` | Run all enabled checks on demand → `ThreatEvent[]` |
-| `isDeviceCompromised()` | `true` when high/critical threats are detected |
+| `isDeviceCompromised()` | `true` when shared C++ scoring marks the device compromised |
 | `getStatus()` | Monitoring state, platform, version, pinning status |
 | `configureSslPinning(pins)` | Set SPKI pins per host |
 | `fetchPinned(url)` | Native GET request using the pinned TLS stack |
@@ -94,7 +94,34 @@ await Fortress.configure({
   },
   // Triggers on high OR critical threats (v1.x). Prefer 'log' until you need hard fail.
   onCriticalThreat: 'log', // 'log' | 'block_ui' | 'exit'
+  // Shared C++ scoring (Android + iOS). Defaults match v1.x.
+  scoring: {
+    aloneAt: 'high',          // any single high/critical → compromised
+    countAtOrAbove: 'low',    // count threats ≥ this severity
+    countThreshold: 2,        // N counted signals → compromised
+  },
   expectedSigningCertificateSha256: '...', // required when repackaging is enabled
+});
+```
+
+### Scoring (shared C++)
+
+Compromise is decided in **native C++** (`cpp/fortress_scoring.cpp`), not in JavaScript:
+
+| Rule (defaults) | Result |
+|-----------------|--------|
+| Any threat ≥ `aloneAt` (`high`) | Compromised |
+| Count of threats ≥ `countAtOrAbove` (`low`) ≥ `countThreshold` (`2`) | Compromised |
+
+Example — treat only medium+ toward the aggregate (“N medium signals”):
+
+```typescript
+await Fortress.configure({
+  scoring: {
+    aloneAt: 'high',
+    countAtOrAbove: 'medium',
+    countThreshold: 2,
+  },
 });
 ```
 
@@ -267,7 +294,7 @@ yarn build
 
 ## Future work
 
-v1.1 adds emulator detection, native `block_ui`, and `showBlockOverlay()` for demos. Planned v2 work includes shared C++ scoring, SSL `fetchPinned` options, threat tuning, Expo plugin, and optional Play Integrity / DeviceCheck modules.
+v1.1 adds emulator detection, native `block_ui`, and `showBlockOverlay()` for demos. Shared C++ scoring is available via `configure({ scoring })`. Planned v2 work includes SSL `fetchPinned` options, threat tuning, Expo plugin, and optional Play Integrity / DeviceCheck modules.
 
 No mobile security library is unbreakable on a fully compromised device. The goal is layered defense, early detection, and configurable response — with server-side risk scoring for high-value flows.
 

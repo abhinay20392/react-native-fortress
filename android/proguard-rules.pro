@@ -2,6 +2,7 @@
 -keep class com.fortress.FortressModule { *; }
 -keep class com.fortress.FortressPackage { *; }
 -keep class com.fortress.NativeFortressSpec { *; }
+-keep class com.fortress.ThreatScoring { *; }
 
 # Keep detection logic invoked via reflection-free paths from the module.
 -keep class com.fortress.root.** { *; }

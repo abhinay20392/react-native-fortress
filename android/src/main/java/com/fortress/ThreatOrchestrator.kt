@@ -102,6 +102,19 @@ class ThreatOrchestrator(
       onCriticalThreat = config.getString("onCriticalThreat") ?: "log"
     }
 
+    if (config.hasKey("scoring")) {
+      val scoring = config.getMap("scoring")
+      if (scoring != null) {
+        ThreatScoring.configure(
+          aloneAt = if (scoring.hasKey("aloneAt")) scoring.getString("aloneAt") else null,
+          countAtOrAbove =
+            if (scoring.hasKey("countAtOrAbove")) scoring.getString("countAtOrAbove") else null,
+          countThreshold =
+            if (scoring.hasKey("countThreshold")) scoring.getInt("countThreshold") else null,
+        )
+      }
+    }
+
     if (monitoring) {
       startPolling()
     }

@@ -1,6 +1,7 @@
 #import "JailbreakDetector.h"
 
 #import "FortressThreatResult.h"
+#import "ThreatScoring.h"
 #import <TargetConditionals.h>
 #import <UIKit/UIKit.h>
 #import <mach-o/dyld.h>
@@ -110,18 +111,7 @@
 
 + (BOOL)isCompromisedWithThreats:(NSArray<FortressThreatResult *> *)threats
 {
-    if (threats.count == 0) {
-        return NO;
-    }
-
-    for (FortressThreatResult *threat in threats) {
-        if ([threat.severity isEqualToString:@"high"] ||
-            [threat.severity isEqualToString:@"critical"]) {
-            return YES;
-        }
-    }
-
-    return threats.count >= 2;
+    return [FortressThreatScoring isCompromisedWithThreats:threats];
 }
 
 + (FortressThreatResult *)makeThreatWithType:(NSString *)type

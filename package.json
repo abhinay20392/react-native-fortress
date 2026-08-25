@@ -38,7 +38,8 @@
     "prepare": "bob build",
     "typecheck": "tsc",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
-    "test": "jest"
+    "test": "jest",
+    "test:cpp": "c++ -std=c++17 -I cpp cpp/fortress_scoring.cpp cpp/fortress_crypto.cpp cpp/tests/scoring_test.cpp -o /tmp/fortress_scoring_test && /tmp/fortress_scoring_test"
   },
   "keywords": [
     "react-native",

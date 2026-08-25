@@ -13,10 +13,11 @@ Pod::Spec.new do |s|
   s.platforms    = { :ios => min_ios_version_supported }
   s.source       = { :git => "https://github.com/abhinay20392/react-native-fortress.git", :tag => "#{s.version}" }
 
-  s.source_files = "ios/**/*.{h,m,mm,swift,cpp}"
-  s.private_header_files = "ios/**/*.h"
+  s.source_files = "ios/**/*.{h,m,mm,swift,cpp}", "cpp/*.{h,hpp,c,cpp}"
+  s.private_header_files = "ios/**/*.h", "cpp/*.{h,hpp}"
   s.pod_target_xcconfig = {
-    'HEADER_SEARCH_PATHS' => '"$(inherited)" "${PODS_TARGET_SRCROOT}/ios"'
+    'HEADER_SEARCH_PATHS' => '"$(inherited)" "${PODS_TARGET_SRCROOT}/ios" "${PODS_TARGET_SRCROOT}/cpp"',
+    'CLANG_CXX_LANGUAGE_STANDARD' => 'c++17',
   }
 
   install_modules_dependencies(s)
